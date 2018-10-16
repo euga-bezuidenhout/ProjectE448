@@ -179,7 +179,7 @@ def test_sensitivity(fl_test_angle, bool_test_fm):
 
     File format: "<snr_db>,<average RMSE>\n"
 
-    SNR range to test (dB): -20 <= <snr_db> <= 20
+    SNR range to test (dB): -20 <= <snr_db> <= 20 in steps of 1
 
     Averages RMSE over <num_cycles> iterations:
     <rmse> = ( <est_aoa> - <aoa> )
@@ -194,27 +194,23 @@ def test_sensitivity(fl_test_angle, bool_test_fm):
     '''
 
     filename = (
-        "./output/accuracy/music_accuracy_%s_%d.csv") % (str_test_band, int_test_cntr)
-    file_acc = open(filename, "w")
-    test_angles = np.arange(-80, 81, 5)
+        "./output/sensitivity/music_sensitivity_%.2f.csv") % (fl_test_angle)
+    file_sens = open(filename, "w")
+    test_snr = np.arange(-50, 21, 1)
     num_cycles = 100
-    snr = 10
-    total_est_aoa = 0
     total_rmse = 0
 
-    for angle in test_angles:
+    for s in test_snr:
         for n in range(num_cycles):
-            m = MUSIC(angle)
-            m.calculateAOA(snr, fm_mod=bool_fm)
-            total_est_aoa += m.aoa
-            total_rmse += (m.aoa - angle)**2
+            m = MUSIC(fl_test_angle)
+            exec_time = m.calculateAOA(s, fm_mod=bool_test_fm)
+            total_rmse += (m.aoa - fl_test_angle)**2
 
-        avg_est_aoa = total_est_aoa / num_cycles
-        avg_rmse = np.sqrt(total_rmse / num_cycles)
+        avg_rmse_db = 10 * np.log(np.sqrt(total_rmse / num_cycles))
 
-        file_acc.write("%.2f,%.2f,%.2f\n" % (angle, avg_est_aoa, avg_rmse))
+        file_sens.write("%d,%.4f\n" % (s, avg_rmse_db))
 
-    file_acc.close()
+    file_sens.close()
 
 
 # angle = 30
@@ -228,7 +224,9 @@ def test_sensitivity(fl_test_angle, bool_test_fm):
 
 # print(np.exp(-1j * np.pi * np.sin(30 * np.pi / 180)))
 # plot_music_range(np.arange(-90, 92, 2))
+
 # Testing
-# test_accuracy("nb", 0, False)
-# test_resolution(30., 5, False)
+test_accuracy("nb", 0)
+test_resolution(30., 5, False)
 test_efficiency(30., 5, False)
+test_sensitivity(30., False)
