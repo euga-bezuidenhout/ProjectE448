@@ -66,11 +66,11 @@ def plot_music_range(angles_range):
     # plt.show()
 
 
-def test_accuracy(str_test_band, int_test_cntr):
+def test_accuracy(int_test_snr, bool_test_fm):
     '''
     Test accuracy of algorithm for range of angles and averages RMSE (Root Mean Square Error)
 
-    File format: "<AoA>,<average estimated AoA>,<average RMSE>\n"
+    File format: "<AoA> & <average estimated AoA> & <average RMSE>\\\n"
 
     Range to test: -80 <= <theta> <= 80 in steps of 5
 
@@ -83,38 +83,39 @@ def test_accuracy(str_test_band, int_test_cntr):
     <avg_rmse> = sqrt( 1./<num_cycles> * sum( <rmse>**2 ) )
 
     Input:
-     - <str_test_band>: String; bandwidth to test for; either "nb" or "wb"
-     - <int_test_cntr>: Integer; external counter to differentiate files
+     - <int_test_snr>: Integer; SNR to test for
+     - <bool_test_fm>: Boolean; calculate AoA with or without FM modulation i.e. wideband or not
 
     Output:
-     - Text file with comma-separated values
+     - Text file with LaTeX table-ready values
     '''
 
-    if (str_test_band == "wb"):
-        bool_fm = True
+    if (bool_test_fm):
+        band = "wb"
     else:
-        bool_fm = False
+        band = "nb"
 
     filename = (
-        "./output/accuracy/music_accuracy_%s_%d.csv") % (str_test_band, int_test_cntr)
+        "./output/accuracy/music_accuracy_%s_%d.txt") % (band, int_test_snr)
     file_acc = open(filename, "w")
-    test_angles = np.arange(-80, 81, 5)
+    test_angles = np.arange(-90, 91, 10)
     num_cycles = 100
-    snr = 10
-    total_est_aoa = 0
-    total_rmse = 0
 
-    for angle in test_angles:
+    for i in range(test_angles.size):
+        total_rmse = 0
+        total_est_aoa = 0
+
         for n in range(num_cycles):
-            m = MUSIC(angle)
-            m.calculateAOA(snr, fm_mod=bool_fm)
+            m = MUSIC(test_angles[i])
+            m.calculateAOA(int_test_snr, fm_mod=bool_test_fm)
             total_est_aoa += m.aoa
-            total_rmse += (m.aoa - angle)**2
+            total_rmse += (m.aoa - test_angles[i])**2
 
         avg_est_aoa = total_est_aoa / num_cycles
         avg_rmse = np.sqrt(total_rmse / num_cycles)
 
-        file_acc.write("%.2f,%.2f,%.2f\n" % (angle, avg_est_aoa, avg_rmse))
+        file_acc.write("%.2f & %.2f & %.2f\\\\\n" %
+                       (angle, avg_est_aoa, avg_rmse))
 
     file_acc.close()
 
@@ -132,17 +133,29 @@ def test_resolution(fl_test_angle, int_test_snr, bool_test_fm):
      - Image file of graph
     '''
 
-    filename = (
-        "./output/resolution/music_resolution_%.2f_%d.png") % (fl_test_angle, int_test_snr)
+    if (bool_test_fm):
+        band = "wb"
+    else:
+        band = "nb"
 
-    m = MUSIC(fl_test_angle)
-    m.calculateAOA(int_test_snr, fm_mod=bool_test_fm)
+    filename = (
+        "./output/resolution/music_resolution_%s_%.2f_%d.png") % (band, fl_test_angle, int_test_snr)
+    num_cycles = 100
+    test_angles = np.linspace(-90, 90, 10000)
+    avg_P = np.zeros(test_angles.size)
+
+    for n in range(num_cycles):
+        m = MUSIC(fl_test_angle)
+        time = m.calculateAOA(int_test_snr, fm_mod=bool_test_fm)
+        avg_P += m.P_music
+
+    avg_P /= num_cycles
 
     plt.figure(1)
     plt.title(r"MUSIC: AoA = $%.2f^\circ$" % (fl_test_angle))
     plt.xlabel("Angle/Direction of Arrival (degrees)")
     plt.ylabel("Power (dB)")
-    plt.plot(m.angles * 180 / np.pi, m.P_music)
+    plt.plot(test_angles, avg_P)
     plt.savefig(filename, bbox_inches="tight", format="png")
 
 
@@ -150,7 +163,7 @@ def test_efficiency(fl_test_angle, int_test_snr, bool_test_fm):
     '''
     Test efficiency i.t.o. time to calculate angle
 
-    File format: "<iteration>,<execution time>\n"
+    File format: "<iteration> & <execution time> & <iteration> & <execution time> & <iteration> & <execution time>\\\n"
 
     Input:
      - <fl_test_angle>: Float; angle to test
@@ -161,15 +174,29 @@ def test_efficiency(fl_test_angle, int_test_snr, bool_test_fm):
      - Image file of graph
     '''
 
+    if (bool_test_fm):
+        band = "wb"
+    else:
+        band = "nb"
+
     filename = (
-        "./output/efficiency/music_efficiency_%.2f_%d.csv") % (fl_test_angle, int_test_snr)
+        "./output/efficiency/music_efficiency_%s_%.2f_%d.txt") % (band, fl_test_angle, int_test_snr)
     file_eff = open(filename, "w")
+    exec_times = np.zeros(102)
+    exec_times_100 = np.zeros(100)
 
-    for i in range(100):
+    for i in range(exec_times.size):
         m = MUSIC(fl_test_angle)
-        exec_time = m.calculateAOA(int_test_snr, fm_mod=bool_test_fm)
-        file_eff.write("%d,%.3f\n" % (i + 1, exec_time))
+        exec_times[i] = m.calculateAOA(int_test_snr, fm_mod=bool_test_fm)
 
+        if ((i + 1) % 3 == 0):
+            file_eff.write("%d & %.3f & %d & %.3f & %d & %.3f\\\\\n" % (
+                i - 1, exec_times[i - 2], i, exec_times[i - 1], i + 1, exec_times[i]))
+
+    exec_times_100 = exec_times[0:100]
+    file_eff.write("min,%.3f\n" % (np.amin(exec_times_100)))
+    file_eff.write("max,%.3f\n" % (np.amax(exec_times_100)))
+    file_eff.write("avg,%.3f\n" % (np.average(exec_times_100)))
     file_eff.close()
 
 
@@ -179,7 +206,7 @@ def test_sensitivity(fl_test_angle, bool_test_fm):
 
     File format: "<snr_db>,<average RMSE>\n"
 
-    SNR range to test (dB): -20 <= <snr_db> <= 20 in steps of 1
+    SNR range to test (dB): -50 <= <snr_db> <= 50 in steps of 1
 
     Averages RMSE over <num_cycles> iterations:
     <rmse> = ( <est_aoa> - <aoa> )
@@ -190,27 +217,50 @@ def test_sensitivity(fl_test_angle, bool_test_fm):
      - <bool_test_fm>: Boolean; calculate AoA with or without FM modulation i.e. wideband or not
 
     Output:
-     - Text file with comma-separated values
+     - Text file with LaTeX table-ready values
+     - Image file with graph of RMSE-vs-SNR
     '''
 
-    filename = (
-        "./output/sensitivity/music_sensitivity_%.2f.csv") % (fl_test_angle)
-    file_sens = open(filename, "w")
-    test_snr = np.arange(-50, 21, 1)
-    num_cycles = 100
-    total_rmse = 0
+    if (bool_test_fm):
+        band = "wb"
+    else:
+        band = "nb"
 
-    for s in test_snr:
+    filename = (
+        "./output/sensitivity/music_sensitivity_%s_%.2f.txt") % (band, fl_test_angle)
+    filename_img = (
+        "./output/sensitivity/music_sensitivity_%s_%.2f.png") % (band, fl_test_angle)
+    file_sens = open(filename, "w")
+    test_snr = np.arange(-50, 51, 1)
+    num_cycles = 100
+    arr_avg_rmse_db = np.zeros(test_snr.size)
+
+    for i in range(test_snr.size):
+        total_rmse = 0
+
         for n in range(num_cycles):
             m = MUSIC(fl_test_angle)
-            exec_time = m.calculateAOA(s, fm_mod=bool_test_fm)
+            exec_time = m.calculateAOA(test_snr[i], fm_mod=bool_test_fm)
             total_rmse += (m.aoa - fl_test_angle)**2
 
         avg_rmse_db = 10 * np.log(np.sqrt(total_rmse / num_cycles))
+        arr_avg_rmse_db[i] = avg_rmse_db
 
-        file_sens.write("%d,%.4f\n" % (s, avg_rmse_db))
+        file_sens.write("%d & %.4f" % (test_snr[i], avg_rmse_db))
+
+        if (((i + 1) % 3) == 0):
+            file_sens.write("\\\\\n")
+        else:
+            file_sens.write(" & ")
 
     file_sens.close()
+
+    plt.figure(1)
+    plt.title("MUSIC Algorithm: Sensitivity to Noise")
+    plt.xlabel("SNR (dB)")
+    plt.ylabel("Average RMSE (dB)")
+    plt.plot(test_snr, arr_avg_rmse_db)
+    plt.savefig(filename_img, bbox_inches="tight", format="png")
 
 
 # angle = 30
@@ -225,8 +275,10 @@ def test_sensitivity(fl_test_angle, bool_test_fm):
 # print(np.exp(-1j * np.pi * np.sin(30 * np.pi / 180)))
 # plot_music_range(np.arange(-90, 92, 2))
 
-# Testing
-test_accuracy("nb", 0)
-test_resolution(30., 5, False)
-test_efficiency(30., 5, False)
+# Testing Narrowband
+# test_accuracy(5, False)
+# test_resolution(30., 5, False) # Done
+# test_efficiency(30., 5, False) # Done
 test_sensitivity(30., False)
+
+# Testing Wideband
