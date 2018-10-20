@@ -88,6 +88,7 @@ def test_accuracy(int_test_snr, bool_test_fm):
 
     Output:
      - Text file with LaTeX table-ready values
+     - Image file with average RMSE vs AoA
     '''
 
     if (bool_test_fm):
@@ -95,11 +96,14 @@ def test_accuracy(int_test_snr, bool_test_fm):
     else:
         band = "nb"
 
-    filename = (
-        "./output/accuracy/music_accuracy_%s_%d.txt") % (band, int_test_snr)
+    filename = "./output/accuracy/music_accuracy_%s_%d.txt" % (
+        band, int_test_snr)
+    filename_img = "./output/accuracy/music_accuracy_%s_%d.png" % (
+        band, int_test_snr)
     file_acc = open(filename, "w")
-    test_angles = np.arange(-90, 91, 10)
+    test_angles = np.arange(-90, 91, 5)
     num_cycles = 100
+    arr_avg_rmse = np.zeros(test_angles.size)
 
     for i in range(test_angles.size):
         total_rmse = 0
@@ -113,11 +117,24 @@ def test_accuracy(int_test_snr, bool_test_fm):
 
         avg_est_aoa = total_est_aoa / num_cycles
         avg_rmse = np.sqrt(total_rmse / num_cycles)
+        arr_avg_rmse[i] = avg_rmse
 
-        file_acc.write("%.2f & %.2f & %.2f\\\\\n" %
-                       (angle, avg_est_aoa, avg_rmse))
+        file_acc.write("%.2f & %.2f & %.2f" %
+                       (test_angles[i], avg_est_aoa, avg_rmse))
+
+        if ((i + 1) % 2 == 0):
+            file_acc.write("\\\\\n")
+        else:
+            file_acc.write(" & ")
 
     file_acc.close()
+
+    plt.figure(1)
+    plt.title("MUSIC Algorithm: Accuracy of Algorithm")
+    plt.xlabel("Angle of Arrival (degrees)")
+    plt.ylabel("Average RMSE (dB)")
+    plt.plot(test_angles, 10 * np.log(arr_avg_rmse))
+    plt.savefig(filename_img, bbox_inches="tight", format="png")
 
 
 def test_resolution(fl_test_angle, int_test_snr, bool_test_fm):
@@ -206,7 +223,7 @@ def test_sensitivity(fl_test_angle, bool_test_fm):
 
     File format: "<snr_db>,<average RMSE>\n"
 
-    SNR range to test (dB): -50 <= <snr_db> <= 50 in steps of 1
+    SNR range to test (dB): -50 <= <snr_db> <= 40 in steps of 5
 
     Averages RMSE over <num_cycles> iterations:
     <rmse> = ( <est_aoa> - <aoa> )
@@ -231,7 +248,7 @@ def test_sensitivity(fl_test_angle, bool_test_fm):
     filename_img = (
         "./output/sensitivity/music_sensitivity_%s_%.2f.png") % (band, fl_test_angle)
     file_sens = open(filename, "w")
-    test_snr = np.arange(-50, 51, 1)
+    test_snr = np.arange(-50, 41, 5)
     num_cycles = 100
     arr_avg_rmse_db = np.zeros(test_snr.size)
 
@@ -265,7 +282,7 @@ def test_sensitivity(fl_test_angle, bool_test_fm):
 
 # angle = 30
 # music = MUSIC(angle)
-# music.calculateAOA(100, fm_mod=True)
+# t = music.calculateAOA(20, fm_mod=False)
 # music.plot_signals(music.X[0])
 # plot_signals(music)
 # print("AOA:\t\t%.2f" % (angle))
@@ -276,9 +293,13 @@ def test_sensitivity(fl_test_angle, bool_test_fm):
 # plot_music_range(np.arange(-90, 92, 2))
 
 # Testing Narrowband
-# test_accuracy(5, False)
+# test_accuracy(0, False)  # Done
 # test_resolution(30., 5, False) # Done
 # test_efficiency(30., 5, False) # Done
-test_sensitivity(30., False)
+# test_sensitivity(30., False)  # Done
 
 # Testing Wideband
+# test_accuracy(0, True) # Done
+# test_resolution(30., 5, True) # Done
+# test_efficiency(30., 5, True) # Done
+test_sensitivity(30., True)

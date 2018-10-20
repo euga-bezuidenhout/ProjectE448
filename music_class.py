@@ -3,7 +3,6 @@ class MUSIC:
     import numpy as np
     import matplotlib.pyplot as plt
     import time
-    from copy import deepcopy
 
     def __init__(self, theta_aoa):
 
@@ -79,10 +78,21 @@ class MUSIC:
         self.s = self.np.zeros((self.K, self.M), dtype=complex)
         y_c = self.np.zeros((self.K, self.M), dtype=complex)
 
+        # self.plt.figure(1)
+        # self.plt.subplot(211)
+        # self.plt.title("Modulator")
+        # self.plt.ylabel("Amplitude")
+
         for k in range(self.K):
             sig = self.Amp * self.np.sin(2 * self.np.pi *
                                          self.f1 * self.t)
             self.s[k] = sig
+
+        # self.plt.plot(self.t, self.s[0])
+
+        # self.plt.subplot(212)
+        # self.plt.ylabel("Amplitude")
+        # self.plt.xlabel("Modulated Signal")
 
         # Carrier info
         f_c = 100
